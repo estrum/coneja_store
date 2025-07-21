@@ -1,0 +1,58 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+*.pyo
+*.sqlite3
+*.db
+*.mo
+
+# Environment variables
+.env
+.env.*
+
+# Media / static files (si generas archivos temporales aquí)
+media/
+staticfiles/
+static/
+
+# VSCode / IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+.venv/
+.python-version
+
+# Pytest / coverage
+htmlcov/
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.cache
+
+# Migrations (opcional, si usas `makemigrations` en producción)
+# **Puedes quitar esta línea si quieres rastrear las migraciones**
+**/migrations/*.py
+**/migrations/__pycache__/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
