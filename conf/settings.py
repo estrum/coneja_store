@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     #myapps
     'users',
+    'products',
+    'logs',
     #third party
     'rest_framework',
 ]
@@ -155,8 +157,10 @@ TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": os.getenv('SIMPLE_JWT_ACCESS_TOKEN_LIFETIME'),
-    "REFRESH_TOKEN_LIFETIME": os.getenv('SIMPLE_JWT_ACCESS_REFRESH_TOKEN'),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=int(os.getenv('SIMPLE_JWT_ACCESS_TOKEN_LIFETIME', 60))),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        days=int(os.getenv('SIMPLE_JWT_ACCESS_REFRESH_TOKEN', 1))),
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": False,
 }

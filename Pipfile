@@ -11,6 +11,8 @@ djangorestframework-simplejwt = "*"
 twilio = "*"
 phonenumbers = "*"
 dotenv = "*"
+cloudinary = "*"
+django-cloudinary-storage = "*"
 
 [dev-packages]
 
