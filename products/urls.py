@@ -1,13 +1,13 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path, include
-from .views import (ProductViewSet,
-                    ProductListView, 
+from .views import (ProductoRetrieveUpdateDestroyView,
+                    ProductListView,
                     CategoryViewSet, 
                     TagViewSet, 
                     SizeViewSet)
 
 router = DefaultRouter()
-router.register('product', ProductViewSet, basename='product')
+router.register('product', ProductoRetrieveUpdateDestroyView, basename='product')
 router.register('categories', CategoryViewSet, basename='categories')
 router.register('tags', TagViewSet, basename='tags')
 router.register('sizes', SizeViewSet, basename='sizes')

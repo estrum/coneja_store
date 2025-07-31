@@ -1,20 +1,32 @@
 from rest_framework import serializers
-from .models import Product, Category, Tag, Size
+from django.db import transaction
+from .models import Product, Category, Tag, Size, ProductInventory
 
+#category
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name']
 
 
+#tags
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ['id', 'name']
 
 
+#productInventory para los tamaños/tallas y el stock de los productos
+class ProductInventorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductInventory
+        fields = ['id', 'size', 'stock']
+
+
+#size
 class SizeSerializer(serializers.ModelSerializer):
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), write_only=True)
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(), write_only=True)
 
     class Meta:
         model = Size
@@ -27,52 +39,79 @@ class SizeSerializer(serializers.ModelSerializer):
         return rep
 
 
-class ProductSerializer(serializers.ModelSerializer):
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), write_only=True)
-    tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True, write_only=True)
-    sizes = serializers.PrimaryKeyRelatedField(queryset=Size.objects.all(), many=True, write_only=True)
+#para el get all de los productos para la vitrina o el panel de usuario
+class ProductSerializerGetAll(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(), write_only=True)
+    tags = serializers.PrimaryKeyRelatedField(
+        queryset=Tag.objects.all(), many=True, write_only=True)
 
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'description', 'image_url',
-            'price', 'stock', 'is_active',
-            'category', 'tags', 'sizes',   # sólo escritura
-            'updated_at'
+            'id', 'name', 'description', 
+            'image_urls', 'price', 'is_active',
+            'category', 'tags', 'updated_at',
         ]
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        # Sobrescribir valores con los nombres legibles
         rep['category'] = instance.category.name
         rep['tags'] = [tag.name for tag in instance.tags.all()]
-        rep['sizes'] = [size.name for size in instance.sizes.all()]
+        rep.pop('description')
+        rep.pop('is_active')
         return rep
 
+
+#para el getById del producto usado en los detalles y formularios
+class ProductSerializerDetail(serializers.ModelSerializer):
+    category = serializers.CharField(source='category.name', read_only=True)
+    tags = serializers.SlugRelatedField(many=True, read_only=True, slug_field='name')
+    posted_by = serializers.CharField(source='posted_by.first_name', read_only=True)
+    product_inventory = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'description', 'image_urls',
+            'price', 'posted_by', 'category',
+            'tags', 'product_inventory'
+        ]
+
+    def get_product_inventory(self, obj):
+        inventory = ProductInventory.objects.filter(product=obj)
+        return ProductInventorySerializer(inventory, many=True).data
+
+
+#para los endpoints create y patch
+class ProductSerializer(serializers.ModelSerializer):
+    inventory = ProductInventorySerializer(many=True)
+
+    class Meta:
+        model = Product
+        fields = ['name', 'description', 'category', 'posted_by',
+                  'image_urls', 'image_public_ids', 'tags',
+                  'price', 'updated_at', 'inventory']
+    
     def create(self, validated_data):
-        tags = validated_data.pop('tags', [])
-        sizes = validated_data.pop('sizes', [])
-        request = self.context.get('request')
-
-        if request and hasattr(request, 'user'):
-            validated_data['posted_by'] = request.user
-
+        articles_data = validated_data.pop('inventory')
         product = Product.objects.create(**validated_data)
-        product.tags.set(tags)
-        product.sizes.set(sizes)
+        for article in articles_data:
+            ProductInventory.objects.create(producto=product, **article)
         return product
-
+    
     def update(self, instance, validated_data):
-        tags = validated_data.pop('tags', None)
-        sizes = validated_data.pop('sizes', None)
+        articles_data = validated_data.pop('inventory')
 
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        if tags is not None:
-            instance.tags.set(tags)
-        if sizes is not None:
-            instance.sizes.set(sizes)
-
+        # Actualizar el producto
+        instance.name = validated_data.get('name', instance.name)
         instance.save()
+
+        # Actualizar o crear artículos relacionados
+        # Aquí puedes implementar una lógica más sofisticada para actualizar artículos existentes
+        # o eliminar los que ya no están. Para simplificar, este ejemplo solo crea nuevos.
+        instance.inventory.all().delete() # Elimina los artículos existentes para recrearlos
+        for article_data in articles_data:
+            ProductInventory.objects.create(producto=instance, **article_data)
+
         return instance
