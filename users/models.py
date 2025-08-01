@@ -45,6 +45,7 @@ class UserManager(BaseUserManager):
 
 
 class CustomUser(AbstractUser):
+    """Usuario personalizado para el proyecto"""
     guid = models.UUIDField(
         default=uuid.uuid4, unique=True, editable=False)
 

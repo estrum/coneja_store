@@ -1,5 +1,8 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import (IsAuthenticatedOrReadOnly)
+from rest_framework.permissions import (
+    IsAuthenticatedOrReadOnly,
+    IsAdminUser,
+    AllowAny)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -17,22 +20,46 @@ from .serializers import (
     TagSerializer, 
     SizeSerializer
 )
-from conf.permissions import (IsOwnerOrStaffOrSuperuser, 
-                              IsOwnerOrSuperuser) 
+#from conf.permissions import (IsOwnerOrStaffOrSuperuser, 
+#                              IsOwnerOrSuperuser) 
 
 class PublicReadOnly(viewsets.ModelViewSet):
+    """
+    exclusivo para los metodos crud relacionado a products
+    y el inventory
+
+    SIZE, TAGS y CATEGORIES : IsAdminUser
+    
+    PRODUCT y PRODUCTINVENTORY:
+        ->(CREATE) PRODUCT - PRODUCTINVENTORY:
+            SOLO EL DUEÑO O EL STAFF PUEDEN CREAR.
+        ->(GET, GETBYID, GETFILTRADO) PRODUCT:
+            CUALQUIERA PUEDE VER LA INFORMACIÓN.
+        ->(GETBYID) PRODUCT CON ARTICLES:
+            CUALQUIERA PUEDE VER LA INFORMACIÓN.
+        ->(UPDATE, PATCH) PRODUCT Y ARTICLES:
+            SOLO EL DUEÑO O EL STAFF PUEDEN MODIFICAR.
+        ->(DELETE) PRODUCT:
+            SOLO EL DUEÑO O EL STADD PUEDEN BORRAR.
+            SI SE BORRA UN PRODUCTO TAMBIÉN SUS ARTICULOS
+    """
+
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+    #TODO: CORREGIR LOS PERMISOS, AGREGA PERMISO PERSONALIZADO PARA
+    #PRODUCTOS
     def get_permissions(self):
         if self.action in ['destroy']:
-            return [IsOwnerOrStaffOrSuperuser()]
+            return [IsAdminUser()]
         elif self.action in ['create', 'update', 'partial_update']:
-            return [IsOwnerOrSuperuser()]
+            return [IsAdminUser()]
         return [permission() for permission in self.permission_classes]
+    
 
 
-# Product List View - GetAll con filtros y paginación
 class ProductListView(APIView):
+    """Product List View - GetAll con filtros y paginación"""
+
     def get(self, request):
         queryset = Product.objects.filter(is_active=True)
 
@@ -43,7 +70,8 @@ class ProductListView(APIView):
 
         if search:
             queryset = queryset.filter(
-                Q(name__icontains=search) | Q(description__icontains=search)
+                Q(name__icontains=search) 
+                | Q(description__icontains=search)
             )
         if category:
             queryset = queryset.filter(category_id=category)
@@ -68,12 +96,15 @@ class ProductListView(APIView):
 
         # Ordenamiento
         order_by = request.query_params.get('order_by')
-        allowed_order_fields = ['price', '-price', 'name', '-name', 'updated_at', '-updated_at']
+        allowed_order_fields = ['price', '-price', 
+                                'name', '-name', 
+                                'updated_at', '-updated_at']
 
         if order_by in allowed_order_fields:
             queryset = queryset.order_by(order_by)
 
-        serializer = ProductSerializerGetAll(queryset[start:end], many=True)
+        serializer = ProductSerializerGetAll(
+            queryset[start:end], many=True)
 
         return Response({
             'page': page,
@@ -83,25 +114,29 @@ class ProductListView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-# Product ViewSet - GetById, Create, Update, Delete
 class ProductoRetrieveUpdateDestroyView(PublicReadOnly):
+    """Product ViewSet - GetById, Create, Update, Delete"""
+
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
 
 # Category ViewSet
 class CategoryViewSet(PublicReadOnly):
+
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
 
 # Tag ViewSet
 class TagViewSet(PublicReadOnly):
+
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
 
 
 # Size ViewSet
 class SizeViewSet(PublicReadOnly):
+
     queryset = Size.objects.all()
     serializer_class = SizeSerializer

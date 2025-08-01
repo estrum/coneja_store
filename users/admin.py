@@ -35,7 +35,12 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'phone_number', 'store_name', 'slug', 'password1', 'password2'),
+            'fields': ('email', 
+                       'phone_number', 
+                       'store_name', 
+                       'slug', 
+                       'password1', 
+                       'password2'),
         }),
     )
     readonly_fields = ('last_2fa_verified_at', 

@@ -15,9 +15,9 @@ class TagAdmin(admin.ModelAdmin):
 
 
 @admin.register(Size)
-class TagAdmin(admin.ModelAdmin):
-    list_display = ('id', 'category', 'name')
-    search_fields = ('name',)
+class SizeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'size_name', 'description')
+    search_fields = ('size_name',)
 
 
 @admin.register(Product)

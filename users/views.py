@@ -50,9 +50,9 @@ class PublicReadOnly(viewsets.ModelViewSet):
 
 
 class LoginThrottle(UserRateThrottle):
-    """limita las solicitudes a 10 por hora"""
+    """limita las solicitudes a 20 por hora"""
 
-    rate = '10/hour'
+    rate = '20/hour'
 
 
 class LoginView(APIView):
@@ -101,7 +101,7 @@ class SendOTPView(APIView):
     endpoint que verifica el codigo de sesión y manda sms
     con codigo para recibir el token 
     """
-    #throttle_classes = [UserRateThrottle]
+    throttle_classes = [UserRateThrottle]
 
     def post(self, request):
         serializer = SendOTPSerializer(data=request.data)
@@ -215,6 +215,7 @@ class UserViewSet(PublicReadOnly):
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
+    
     def retrieve(self, request, pk=None):
         """GET BY ID"""
 
@@ -230,6 +231,7 @@ class UserViewSet(PublicReadOnly):
         serializer = UserSerializer(user)
         return Response(serializer.data)
 
+    
     def partial_update(self, request, pk=None):
         """UPDATE (PATCH)"""
         
@@ -250,6 +252,7 @@ class UserViewSet(PublicReadOnly):
         
         return Response(serializer.errors, status=400)
 
+    
     @action(detail=True, methods=['post'], url_path='change-password')
     def change_password(self, request, pk=None):
         """UPDATE PASSWORD (PATCH)"""
@@ -271,6 +274,7 @@ class UserViewSet(PublicReadOnly):
             return Response({'detail': 'Contraseña actualizada'})
         return Response(serializer.errors, status=400)
 
+    
     def destroy(self, request, pk=None):
         """DELETE BY ID"""
         try:

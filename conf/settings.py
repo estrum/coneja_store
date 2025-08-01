@@ -159,4 +159,6 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-#TODO: cambiar respuestas de los mensajes devueltos em cada error
+#TODO: cambiar respuestas de los mensajes devueltos en cada error
+#un enpoint con un string en lugar de int devuelve un error
+#eso debe cambiarse con una respuesta o 404

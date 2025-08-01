@@ -1,46 +1,43 @@
 from rest_framework import serializers
-from django.db import transaction
+#from django.db import transaction
 from .models import Product, Category, Tag, Size, ProductInventory
 
-#category
+
 class CategorySerializer(serializers.ModelSerializer):
+    """crud para categorías"""
+    
     class Meta:
         model = Category
         fields = ['id', 'name']
 
 
-#tags
 class TagSerializer(serializers.ModelSerializer):
+    """crud para tags"""
+
     class Meta:
         model = Tag
         fields = ['id', 'name']
 
 
-#productInventory para los tamaños/tallas y el stock de los productos
 class ProductInventorySerializer(serializers.ModelSerializer):
+    """crud para el inventario de productos"""
+
     class Meta:
         model = ProductInventory
         fields = ['id', 'size', 'stock']
 
 
-#size
 class SizeSerializer(serializers.ModelSerializer):
-    category = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), write_only=True)
+    """crud para los tamaños de los articulos de los productos"""
 
     class Meta:
         model = Size
-        fields = ['id', 'name', 'category']
-
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        # Sobrescribir valores con los nombres legibles
-        rep['category'] = instance.category.name
-        return rep
+        fields = ['id', 'size_name', 'description']
 
 
-#para el get all de los productos para la vitrina o el panel de usuario
 class ProductSerializerGetAll(serializers.ModelSerializer):
+    """serializer para el endpoint getAll de los productos"""
+
     category = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), write_only=True)
     tags = serializers.PrimaryKeyRelatedField(
@@ -63,11 +60,18 @@ class ProductSerializerGetAll(serializers.ModelSerializer):
         return rep
 
 
-#para el getById del producto usado en los detalles y formularios
 class ProductSerializerDetail(serializers.ModelSerializer):
-    category = serializers.CharField(source='category.name', read_only=True)
-    tags = serializers.SlugRelatedField(many=True, read_only=True, slug_field='name')
-    posted_by = serializers.CharField(source='posted_by.first_name', read_only=True)
+    """
+    para el endpoint getById del producto usado 
+    en los detalles y formularios
+    """
+
+    category = serializers.CharField(
+        source='category.name', read_only=True)
+    tags = serializers.SlugRelatedField(
+        many=True, read_only=True, slug_field='name')
+    posted_by = serializers.CharField(
+        source='posted_by.first_name', read_only=True)
     product_inventory = serializers.SerializerMethodField()
 
     class Meta:
@@ -83,8 +87,8 @@ class ProductSerializerDetail(serializers.ModelSerializer):
         return ProductInventorySerializer(inventory, many=True).data
 
 
-#para los endpoints create y patch
 class ProductSerializer(serializers.ModelSerializer):
+    """para los endpoints create y patch de productInventory"""
     inventory = ProductInventorySerializer(many=True)
 
     class Meta:
@@ -108,10 +112,13 @@ class ProductSerializer(serializers.ModelSerializer):
         instance.save()
 
         # Actualizar o crear artículos relacionados
-        # Aquí puedes implementar una lógica más sofisticada para actualizar artículos existentes
-        # o eliminar los que ya no están. Para simplificar, este ejemplo solo crea nuevos.
-        instance.inventory.all().delete() # Elimina los artículos existentes para recrearlos
+        # Aquí puedes implementar una lógica más sofisticada para 
+        # actualizar artículos existentes
+        # o eliminar los que ya no están. 
+        # Para simplificar, este ejemplo solo crea nuevos.
+        instance.inventory.all().delete()
         for article_data in articles_data:
-            ProductInventory.objects.create(producto=instance, **article_data)
+            ProductInventory.objects.create(
+                producto=instance, **article_data)
 
         return instance

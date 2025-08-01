@@ -7,10 +7,18 @@ from .views import (ProductoRetrieveUpdateDestroyView,
                     SizeViewSet)
 
 router = DefaultRouter()
-router.register('product', ProductoRetrieveUpdateDestroyView, basename='product')
-router.register('categories', CategoryViewSet, basename='categories')
-router.register('tags', TagViewSet, basename='tags')
-router.register('sizes', SizeViewSet, basename='sizes')
+router.register('product', 
+                ProductoRetrieveUpdateDestroyView, 
+                basename='product')
+router.register('categories', 
+                CategoryViewSet, 
+                basename='categories')
+router.register('tags', 
+                TagViewSet, 
+                basename='tags')
+router.register('sizes', 
+                SizeViewSet, 
+                basename='sizes')
 
 urlpatterns = [
     path('product-list/', ProductListView.as_view(), name='product-list'),
