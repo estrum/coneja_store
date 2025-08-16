@@ -11,6 +11,7 @@ class Category(models.Model):
         return self.name
 
 
+#TODO: permitir que el usuario se cree un tag si no existe
 class Tag(models.Model):
     """Tags para la clasificación y filtrado de productos"""
     name = models.CharField(max_length=50, unique=True)
@@ -34,6 +35,7 @@ class Size(models.Model):
         return self.size_name
 
 
+#TODO: añadír slug para las busquedas
 class Product(models.Model):
     """
     productos para mostrar en la vitrina de la web u app.
@@ -66,7 +68,9 @@ class ProductInventory(models.Model):
     tiene un stock propio
     """
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name='inventory')
+        Product, 
+        on_delete=models.CASCADE, 
+        related_name='inventory')
     size = models.ForeignKey(Size, on_delete=models.CASCADE)
     stock = models.PositiveIntegerField(default=0)
 
@@ -74,5 +78,5 @@ class ProductInventory(models.Model):
         unique_together = ('product', 'size') 
 
     def __str__(self):
-        return (f"{self.product.name} - {self.size.name}")
+        return (f"{self.product.name} - {self.size}")
 

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-#from django.db import transaction
+from django.db import transaction
 from .models import Product, Category, Tag, Size, ProductInventory
 
 
@@ -20,11 +20,20 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class ProductInventorySerializer(serializers.ModelSerializer):
-    """crud para el inventario de productos"""
+    """CRUD para inventario de productos"""
+
+    # Campo de solo lectura para mostrar nombre de la talla en GET
+    size_name = serializers.CharField(
+        source='size.size_name', read_only=True)
+
+    # Campo de escritura para recibir el ID de talla en POST/PUT
+    size = serializers.PrimaryKeyRelatedField(
+        queryset=Size.objects.all(), write_only=True
+    )
 
     class Meta:
         model = ProductInventory
-        fields = ['id', 'size', 'stock']
+        fields = ['id', 'size', 'size_name', 'stock']
 
 
 class SizeSerializer(serializers.ModelSerializer):
@@ -35,6 +44,7 @@ class SizeSerializer(serializers.ModelSerializer):
         fields = ['id', 'size_name', 'description']
 
 
+#TODO: añadir logica de cloudinary para manejar las imangenes.
 class ProductSerializerGetAll(serializers.ModelSerializer):
     """serializer para el endpoint getAll de los productos"""
 
@@ -71,7 +81,7 @@ class ProductSerializerDetail(serializers.ModelSerializer):
     tags = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field='name')
     posted_by = serializers.CharField(
-        source='posted_by.first_name', read_only=True)
+        source='posted_by.slug', read_only=True)
     product_inventory = serializers.SerializerMethodField()
 
     class Meta:
@@ -88,37 +98,51 @@ class ProductSerializerDetail(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    """para los endpoints create y patch de productInventory"""
+    """
+    Serializer para crear/editar producto junto con su inventario.
+    """
     inventory = ProductInventorySerializer(many=True)
+    posted_by = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = Product
-        fields = ['name', 'description', 'category', 'posted_by',
-                  'image_urls', 'image_public_ids', 'tags',
-                  'price', 'updated_at', 'inventory']
-    
-    def create(self, validated_data):
-        articles_data = validated_data.pop('inventory')
-        product = Product.objects.create(**validated_data)
-        for article in articles_data:
-            ProductInventory.objects.create(producto=product, **article)
-        return product
-    
-    def update(self, instance, validated_data):
-        articles_data = validated_data.pop('inventory')
+        fields = [
+            'id', 'name', 'description', 'image_urls',
+            'price', 'category', 'posted_by', 'tags',
+            'inventory'
+        ]
 
-        # Actualizar el producto
-        instance.name = validated_data.get('name', instance.name)
+    @transaction.atomic
+    def create(self, validated_data):
+        inventory_data = validated_data.pop('inventory', [])
+        user = self.context['request'].user
+        tags = validated_data.pop('tags', [])
+
+        # Crear producto
+        product = Product.objects.create(**validated_data, posted_by=user)
+        product.tags.set(tags)
+
+        # Crear inventario
+        for inv in inventory_data:
+            ProductInventory.objects.create(product=product, **inv)
+
+        return product
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        inventory_data = validated_data.pop('inventory', [])
+        tags = validated_data.pop('tags', None)
+
+        # Actualizar campos del producto
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if tags is not None:
+            instance.tags.set(tags)
         instance.save()
 
-        # Actualizar o crear artículos relacionados
-        # Aquí puedes implementar una lógica más sofisticada para 
-        # actualizar artículos existentes
-        # o eliminar los que ya no están. 
-        # Para simplificar, este ejemplo solo crea nuevos.
-        instance.inventory.all().delete()
-        for article_data in articles_data:
-            ProductInventory.objects.create(
-                producto=instance, **article_data)
+        # Actualizar inventario (borramos y volvemos a crear)
+        ProductInventory.objects.filter(product=instance).delete()
+        for inv in inventory_data:
+            ProductInventory.objects.create(product=instance, **inv)
 
         return instance

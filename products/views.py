@@ -1,28 +1,21 @@
-from rest_framework import viewsets, status
-from rest_framework.permissions import (
-    IsAuthenticatedOrReadOnly,
-    IsAdminUser,
-    AllowAny)
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.decorators import action
-from rest_framework import serializers
-from django.db.models import Q
-from django.db import transaction
+from rest_framework import viewsets, generics
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny
 
-from .models import Product, Category, Tag, Size, ProductInventory
+from django.db.models import Q
+
+from .models import Product, Category, Tag, Size
 from .serializers import (
     ProductSerializerGetAll, 
     ProductSerializerDetail,
     ProductSerializer,
-    ProductInventorySerializer,
     CategorySerializer, 
     TagSerializer, 
     SizeSerializer
 )
-#from conf.permissions import (IsOwnerOrStaffOrSuperuser, 
-#                              IsOwnerOrSuperuser) 
+from conf.permissions import IsOwnerByGUIDOrAdminForProductsApp
 
+#TODO: usar throtling o cache para evitar la sobrecarga y ataques DDOS
 class PublicReadOnly(viewsets.ModelViewSet):
     """
     exclusivo para los metodos crud relacionado a products
@@ -33,7 +26,7 @@ class PublicReadOnly(viewsets.ModelViewSet):
     PRODUCT y PRODUCTINVENTORY:
         ->(CREATE) PRODUCT - PRODUCTINVENTORY:
             SOLO EL DUEÑO O EL STAFF PUEDEN CREAR.
-        ->(GET, GETBYID, GETFILTRADO) PRODUCT:
+        ->(GETALL, GETBYID, GETBYSTORENAME) PRODUCT:
             CUALQUIERA PUEDE VER LA INFORMACIÓN.
         ->(GETBYID) PRODUCT CON ARTICLES:
             CUALQUIERA PUEDE VER LA INFORMACIÓN.
@@ -44,80 +37,98 @@ class PublicReadOnly(viewsets.ModelViewSet):
             SI SE BORRA UN PRODUCTO TAMBIÉN SUS ARTICULOS
     """
 
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [AllowAny]
 
-    #TODO: CORREGIR LOS PERMISOS, AGREGA PERMISO PERSONALIZADO PARA
-    #PRODUCTOS
     def get_permissions(self):
-        if self.action in ['destroy']:
-            return [IsAdminUser()]
-        elif self.action in ['create', 'update', 'partial_update']:
-            return [IsAdminUser()]
+        if self.action in [
+            'create', 'update', 'partial_update','destroy']:
+            return [IsOwnerByGUIDOrAdminForProductsApp()]
         return [permission() for permission in self.permission_classes]
+
+
+class ProductSearchPagination(PageNumberPagination):
+    page_size = 15
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
+class ProductSearchView(generics.ListAPIView):
+    """
+    Endpoint público para buscar productos por nombre, descripción o tags.
+    Ejemplo de uso:
+    GET /products/search/?q=camiseta&page=1
+    """
+    serializer_class = ProductSerializerGetAll
+    pagination_class = ProductSearchPagination
+
+    def get_queryset(self):
+        queryset = Product.objects.filter(
+            is_active=True).select_related(
+                "category").prefetch_related("tags")
+        
+        q = self.request.query_params.get('q', None)
+
+        if q:
+            queryset = queryset.filter(
+                Q(name__icontains=q) |
+                Q(description__icontains=q) |
+                Q(tags__name__icontains=q) |
+                Q(category__name__icontains=q)
+            ).distinct()
+
+        return queryset.order_by('-updated_at')
     
 
+class ProductByStoreView(generics.ListAPIView):
+    """
+    Endpoint público para buscar productos por el nombre de la tienda.
+    ademas de filtrado por nombre, descripción o tags.
+    Ejemplo de uso:
+    GET /products/<coneja_store>/?q=camiseta&page=1
+    """
+    serializer_class = ProductSerializerGetAll
+    pagination_class = ProductSearchPagination
 
-class ProductListView(APIView):
-    """Product List View - GetAll con filtros y paginación"""
+    def get_queryset(self):
+        store = self.kwargs.get('store')
 
-    def get(self, request):
-        queryset = Product.objects.filter(is_active=True)
+        queryset = Product.objects.filter(
+            is_active=True,
+            posted_by__slug=store).select_related(
+                "category").prefetch_related("tags")
+        
+        q = self.request.query_params.get('q', None)
 
-        # Filtros
-        search = request.query_params.get('search')
-        category = request.query_params.get('category')
-        tags = request.query_params.getlist('tags')
-
-        if search:
+        if q:
             queryset = queryset.filter(
-                Q(name__icontains=search) 
-                | Q(description__icontains=search)
-            )
-        if category:
-            queryset = queryset.filter(category_id=category)
-        if tags:
-            queryset = queryset.filter(tags__id__in=tags).distinct()
+                Q(name__icontains=q) |
+                Q(description__icontains=q) |
+                Q(tags__name__icontains=q) |
+                Q(category__name__icontains=q)
+            ).distinct()
 
-        # Paginación
-        is_admin = request.query_params.get('admin') == 'true'
-        page_size = 50 if is_admin else 15
-        total = queryset.count()
-        max_page = max(1, (total + page_size - 1) // page_size)
-
-        try:
-            page = int(request.query_params.get('page', 1))
-        except (TypeError, ValueError):
-            page = 1
-
-        page = max(1, min(page, max_page))
-
-        start = (page - 1) * page_size
-        end = start + page_size
-
-        # Ordenamiento
-        order_by = request.query_params.get('order_by')
-        allowed_order_fields = ['price', '-price', 
-                                'name', '-name', 
-                                'updated_at', '-updated_at']
-
-        if order_by in allowed_order_fields:
-            queryset = queryset.order_by(order_by)
-
-        serializer = ProductSerializerGetAll(
-            queryset[start:end], many=True)
-
-        return Response({
-            'page': page,
-            'maxPage': max_page,
-            'totalItems': total,
-            'productList': serializer.data
-        }, status=status.HTTP_200_OK)
+        return queryset.order_by('-updated_at')
 
 
-class ProductoRetrieveUpdateDestroyView(PublicReadOnly):
-    """Product ViewSet - GetById, Create, Update, Delete"""
+class ProductDetailView(generics.RetrieveAPIView):
+    """
+    Devuelve el detalle de un producto por su ID.
+    Ejemplo: GET /product/15/
+    """
+    queryset = Product.objects.select_related(
+        "category", "posted_by"
+    ).prefetch_related("tags")
+    serializer_class = ProductSerializerDetail
+    lookup_field = "id"
 
-    queryset = Product.objects.all()
+
+class ProductViewSet(PublicReadOnly):
+    """
+    Para los metodos CREATE - PATCH Y DELETE de products
+    """
+    queryset = Product.objects.all().prefetch_related(
+        'inventory', 'tags', 'category'
+    )
     serializer_class = ProductSerializer
 
 
