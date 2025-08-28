@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     #myapps
     'users',
     'products',
+    'orders',
+    'payments',
     'logs',
     #third party
     'rest_framework',

@@ -20,7 +20,10 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class ProductInventorySerializer(serializers.ModelSerializer):
-    """CRUD para inventario de productos"""
+    """
+    CRUD para inventario de productos
+    no referenciampos product para poder hacer la referencia inversa
+    """
 
     # Campo de solo lectura para mostrar nombre de la talla en GET
     size_name = serializers.CharField(
@@ -44,7 +47,6 @@ class SizeSerializer(serializers.ModelSerializer):
         fields = ['id', 'size_name', 'description']
 
 
-#TODO: añadir logica de cloudinary para manejar las imangenes.
 class ProductSerializerGetAll(serializers.ModelSerializer):
     """serializer para el endpoint getAll de los productos"""
 
@@ -97,6 +99,7 @@ class ProductSerializerDetail(serializers.ModelSerializer):
         return ProductInventorySerializer(inventory, many=True).data
 
 
+#TODO: añadir logica de cloudinary para manejar las imangenes.
 class ProductSerializer(serializers.ModelSerializer):
     """
     Serializer para crear/editar producto junto con su inventario.

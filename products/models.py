@@ -78,5 +78,5 @@ class ProductInventory(models.Model):
         unique_together = ('product', 'size') 
 
     def __str__(self):
-        return (f"{self.product.name} - {self.size}")
+        return (f"{self.product.name} - Size {self.size}")
 
