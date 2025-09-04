@@ -1,6 +1,4 @@
 from django.db import models
-from django.conf import settings
-
 from users.models import CustomUser
 
 class Order(models.Model):
@@ -40,9 +38,6 @@ class Order(models.Model):
     shipping_status = models.CharField(
         max_length=20, choices=SHIPPING_STATUS, default='pending'
     )
-
-    # TODO: añadír un campo de imagen para que el 
-    # usuario suba la factura del envío 
     
     # dirección y contacto
     shipping_address = models.TextField()
@@ -51,9 +46,11 @@ class Order(models.Model):
 
     # comentarios del comprador
     notes = models.TextField(blank=True, null=True)
-    # numero de trackeo del pedido
+    # numero de trackeo del pedido y captura de boleta
     tracking_number = models.CharField(
         max_length=100, blank=True, null=True)
+    shipping_invoice_url = models.URLField(
+        max_length=500, null=True, blank=True)
 
     def __str__(self):
         return f"Order {self.id} - from {self.store_name}"

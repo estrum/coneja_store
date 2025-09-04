@@ -1,6 +1,8 @@
 import phonenumbers
 from rest_framework import serializers
 from users.models import CustomUser
+from conf.manejo_imagenes import procesar_imagen
+import cloudinary.uploader
 
 class SendOTPSerializer(serializers.Serializer):
     """Logica para enviar el sms con el codigo"""
@@ -66,7 +68,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'guid', 'slug', 'email', 'phone_number', 
                   'store_name', 'is_2fa_enabled', 'password', 
-                  'first_name', 'last_name']
+                  'first_name', 'last_name', 'store_logo_url']
         read_only_fields = ['id', 'guid', 'slug']
 
     def create(self, validated_data):
@@ -80,11 +82,39 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     """Actualiza el usuario sin modificar el password"""
+    store_logo_url = serializers.ImageField(required=True)
+
     class Meta:
         model = CustomUser
         fields = [
-            'first_name', 'last_name', 
+            'first_name', 'last_name', 'store_logo_url', 
             'store_name', 'phone_number', 'email']
+        
+    def update(self, instance, validated_data):
+        #procesa imagen a logo
+        # Si el usuario envía un logo
+        if validated_data.get("store_logo_url"):
+            processed_img = procesar_imagen(
+                validated_data.get("store_logo_url"), 
+                f"Store-logo", 
+                "logo")
+
+            # Subir a Cloudinary
+            result = cloudinary.uploader.upload(
+                processed_img, 
+                folder=f"users/{instance.guid}/logo/",
+                public_id=f"Store-logo",
+                overwrite=True)
+                
+            instance.store_logo_url = result["secure_url"]
+
+        instance.first_name = validated_data.get("first_name")
+        instance.last_name = validated_data.get("last_name")
+        instance.store_name = validated_data.get("store_name")
+        instance.phone_number = validated_data.get("phone_number")
+        instance.email = validated_data.get("email")
+        instance.save()
+        return instance
 
 
 class ChangePasswordSerializer(serializers.Serializer):

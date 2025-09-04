@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'logs',
     #third party
     'rest_framework',
+    "cloudinary",
+    "cloudinary_storage",
 ]
 
 MIDDLEWARE = [
@@ -160,6 +162,14 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'guid', 
     'USER_ID_CLAIM': 'user_id',
 }
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
+    "API_KEY": os.getenv("CLOUDINARY_API_KEY"),
+    "API_SECRET": os.getenv("CLOUDINARY_API_SECRET"),
+}
+
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 #TODO: cambiar respuestas de los mensajes devueltos en cada error
 #un enpoint con un string en lugar de int devuelve un error

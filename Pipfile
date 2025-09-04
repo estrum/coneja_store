@@ -11,9 +11,10 @@ djangorestframework-simplejwt = "*"
 twilio = "*"
 phonenumbers = "*"
 dotenv = "*"
+psycopg2-binary = "*"
 cloudinary = "*"
 django-cloudinary-storage = "*"
-psycopg2-binary = "*"
+pillow = "*"
 
 [dev-packages]
 

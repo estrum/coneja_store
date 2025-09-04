@@ -55,7 +55,8 @@ class CustomUser(AbstractUser):
     email = models.EmailField(_('email address'), unique=True)
     phone_number = models.CharField(max_length=15, unique=True)
     #profile picture
-    #TODO: añadir urlfield para configurarlo con cloudinary
+    store_logo_url = models.URLField(
+        max_length=500, null=True, blank=True)
 
     # 2FA vía SMS para entregar el token
     is_2fa_enabled = models.BooleanField(default=True)
