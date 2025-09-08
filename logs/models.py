@@ -20,10 +20,8 @@ class Log(models.Model):
     )
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
     message = models.TextField()
-    related_model = models.CharField(max_length=100, blank=True, null=True)
-    related_id = models.CharField(max_length=100, blank=True, null=True)
-
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    related_model = models.CharField(max_length=50, blank=True, null=True)
+    related_id = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

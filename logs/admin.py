@@ -11,8 +11,7 @@ class LogAdmin(admin.ModelAdmin):
         "action",
         "message_short",
         "related_model",
-        "related_id",
-        "ip_address",
+        "related_id"
     )
     list_filter = ("action", "related_model", "created_at")
     search_fields = ("message", "related_id", "user__email", "user__username")

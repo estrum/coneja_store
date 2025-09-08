@@ -1,8 +1,10 @@
 import phonenumbers
+import cloudinary.uploader
+
 from rest_framework import serializers
 from users.models import CustomUser
 from conf.manejo_imagenes import procesar_imagen
-import cloudinary.uploader
+from logs.utils import create_log
 
 class SendOTPSerializer(serializers.Serializer):
     """Logica para enviar el sms con el codigo"""
@@ -61,6 +63,7 @@ class VerifyOTPSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """Crea un usuario"""
     password = serializers.CharField(write_only=True, required=True)
     slug = serializers.SlugField(read_only=True)
 
@@ -77,6 +80,16 @@ class UserSerializer(serializers.ModelSerializer):
         if password:
             user.set_password(password)
         user.save()
+
+        #log
+        create_log(
+            user=None,
+            action="CREATE",
+            message=f"User created",
+            related_model="USER",
+            related_id=str(user.id)
+        )
+
         return user
 
 
@@ -114,6 +127,16 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         instance.phone_number = validated_data.get("phone_number")
         instance.email = validated_data.get("email")
         instance.save()
+
+        #log
+        create_log(
+            user=instance.guid,
+            action="UPDATE",
+            message=f"User updated",
+            related_model="USER",
+            related_id=str(instance.id)
+        )
+
         return instance
 
 
@@ -126,4 +149,5 @@ class ChangePasswordSerializer(serializers.Serializer):
         if len(value) < 8:
             raise serializers.ValidationError(
                 "La nueva contraseña debe tener al menos 8 caracteres.")
+
         return value
