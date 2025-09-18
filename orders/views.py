@@ -5,22 +5,24 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 
 from .serializers import (
-    OrderSerializer, 
-    StoreOrderSerializer,
+    OrderSerializer,
     UpdateOrderSerializer,
     CancelOrderSerializer,
-    CheckoutSerializer
+    CheckoutSerializer,
+    OrderSerializerList,
+    CompleteOrRefoundOrderSerializer
 )
 #from conf.permissions import IsOwnerOrStaff
 
 
 # 1. Get All Orders ny store_name__slug
 class StoreOrdersListView(generics.ListAPIView):
-    serializer_class = StoreOrderSerializer
+    serializer_class = OrderSerializerList
 
     def get_queryset(self):
         store_slug = self.kwargs["store"]
-        qs = Order.objects.filter(store_name__slug=store_slug).order_by("-issued_at")
+        qs = Order.objects.filter(
+            store_name__slug=store_slug).order_by("-issued_at")
 
         # Filtros opcionales
         payment_status = self.request.query_params.get("payment_status")
@@ -56,7 +58,10 @@ class OrderDetailView(generics.RetrieveAPIView):
             return super().retrieve(request, *args, **kwargs)
         except ValueError as e:
             return Response(
-                {"detail": "El ID de la orden debe ser numérico", "code": "invalid_id"},
+                {
+                    "detail": "El ID de la orden debe ser numérico", 
+                    "code": "invalid_id"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception:
@@ -77,7 +82,7 @@ class UpdateOrderView(generics.UpdateAPIView):
         return Response(
             {
                 "detail": "Order updated successfully",
-                "code": "order_updated",
+                "code": "order updated",
                 "order": OrderSerializer(self.get_object()).data,
             },
             status=status.HTTP_200_OK,
@@ -95,14 +100,34 @@ class CancelOrderView(generics.UpdateAPIView):
         return Response(
             {
                 "detail": "Order canceled successfully",
-                "code": "order_canceled",
-                "order": OrderSerializer(self.get_object()).data,
+                "code": "order canceled",
+                "order": OrderSerializerList(self.get_object()).data,
             },
             status=status.HTTP_200_OK,
         )
 
 
-#5 generate payment
+#5 complete or refound order
+class CompleteOrRefoundOrderView(generics.UpdateAPIView):
+    serializer_class = CompleteOrRefoundOrderSerializer
+    queryset = Order.objects.all()
+    lookup_field = "id"
+
+    def update(self, request, *args, **kwargs):
+        option = self.request.data.get('option')
+
+        response = super().update(request, *args, **kwargs)
+        return Response(
+            {
+                "detail": "Order updated successfully",
+                "code": "task completed",
+                "order": OrderSerializerList(self.get_object()).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+#6 generate payment
 class CheckoutView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = CheckoutSerializer(data=request.data)

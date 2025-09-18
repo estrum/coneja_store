@@ -1,3 +1,6 @@
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
+
 from rest_framework import viewsets, generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
@@ -13,7 +16,7 @@ from .serializers import (
     TagSerializer, 
     SizeSerializer
 )
-from conf.permissions import IsOwnerByGUIDOrAdminForProductsApp
+from conf.permissions import IsOwnerByGUIDOrAdminForRestApp
 
 #TODO: usar throtling o cache para evitar la sobrecarga y ataques DDOS
 class PublicReadOnly(viewsets.ModelViewSet):
@@ -42,7 +45,7 @@ class PublicReadOnly(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in [
             'create', 'update', 'partial_update','destroy']:
-            return [IsOwnerByGUIDOrAdminForProductsApp()]
+            return [IsOwnerByGUIDOrAdminForRestApp()]
         return [permission() for permission in self.permission_classes]
 
 
@@ -52,6 +55,7 @@ class ProductSearchPagination(PageNumberPagination):
     max_page_size = 50
 
 
+@method_decorator(cache_page(60 * 5), name="dispatch")
 class ProductSearchView(generics.ListAPIView):
     """
     Endpoint público para buscar productos por nombre, descripción o tags.
@@ -79,6 +83,7 @@ class ProductSearchView(generics.ListAPIView):
         return queryset.order_by('-updated_at')
     
 
+@method_decorator(cache_page(60 * 5), name="dispatch")
 class ProductByStoreView(generics.ListAPIView):
     """
     Endpoint público para buscar productos por el nombre de la tienda.
@@ -94,7 +99,7 @@ class ProductByStoreView(generics.ListAPIView):
 
         queryset = Product.objects.filter(
             is_active=True,
-            posted_by__slug=store).select_related(
+            store_name__slug=store).select_related(
                 "category").prefetch_related("tags")
         
         q = self.request.query_params.get('q', None)
@@ -116,7 +121,7 @@ class ProductDetailView(generics.RetrieveAPIView):
     Ejemplo: GET /product/15/
     """
     queryset = Product.objects.select_related(
-        "category", "posted_by"
+        "category", "store_name"
     ).prefetch_related("tags")
     serializer_class = ProductSerializerDetail
     lookup_field = "id"

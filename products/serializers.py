@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.db import transaction
 from .models import Product, Category, Tag, Size, ProductInventory
 
-
+#TODO: añadir logs a los serializer tags y productserializer
 class CategorySerializer(serializers.ModelSerializer):
     """crud para categorías"""
     
@@ -82,15 +82,15 @@ class ProductSerializerDetail(serializers.ModelSerializer):
         source='category.name', read_only=True)
     tags = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field='name')
-    posted_by = serializers.CharField(
-        source='posted_by.slug', read_only=True)
+    store_name = serializers.CharField(
+        source='store_name.slug', read_only=True)
     product_inventory = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'description', 'image_urls',
-            'price', 'posted_by', 'category',
+            'price', 'store_name', 'category',
             'tags', 'product_inventory'
         ]
 
@@ -100,18 +100,25 @@ class ProductSerializerDetail(serializers.ModelSerializer):
 
 
 #TODO: añadir logica de cloudinary para manejar las imangenes.
+#La idea es que podamos añadir hasta 5 imagenes, elminar las 
+# de una posicion recibiendo un texto delete-product.png que borre
+#la imagen de esa misma posicion de cloudinary y lo mismo al editarla.
+#las imagenes se guardaran en la carpeta del usuario dentro de la
+#carpeta products y los nombres sera tipo product-1 hasta product-5
+#asi poder sobreescribir la imagen.
+#si no se recibe una imagen, se omite y no se cambia/actualiza
 class ProductSerializer(serializers.ModelSerializer):
     """
     Serializer para crear/editar producto junto con su inventario.
     """
     inventory = ProductInventorySerializer(many=True)
-    posted_by = serializers.StringRelatedField(read_only=True)
+    store_name = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'description', 'image_urls',
-            'price', 'category', 'posted_by', 'tags',
+            'price', 'category', 'store_name', 'tags',
             'inventory'
         ]
 
@@ -122,7 +129,7 @@ class ProductSerializer(serializers.ModelSerializer):
         tags = validated_data.pop('tags', [])
 
         # Crear producto
-        product = Product.objects.create(**validated_data, posted_by=user)
+        product = Product.objects.create(**validated_data, store_name=user)
         product.tags.set(tags)
 
         # Crear inventario

@@ -4,7 +4,8 @@ from users.models import CustomUser
 class Order(models.Model):
     """
     Orden para la factura del pedido
-    La funcion formatted_id se usara para buscar la order
+    La funcion formatted_id se usara para buscar la orden
+    En la url
     """
     store_name = models.ForeignKey(
         CustomUser, 
@@ -19,10 +20,9 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
 
     PAYMENT_STATUS = [
-        ('pending', 'Pending'),
         ('paid', 'Paid'),
         ('failed', 'Failed'),
-        ('refunded', 'Refunded'),
+        ('refounded', 'Refounded'),
     ]
     payment_status = models.CharField(
         max_length=20, choices=PAYMENT_STATUS, default='pending'
@@ -31,7 +31,6 @@ class Order(models.Model):
     SHIPPING_STATUS = [
         ('pending', 'Pending'),
         ('processing', 'Processing'),
-        ('shipped', 'Shipped'),
         ('delivered', 'Delivered'),
         ('canceled', 'Canceled'),
     ]

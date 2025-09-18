@@ -21,8 +21,11 @@ router.register('sizes',
                 basename='sizes')
 
 urlpatterns = [
-    path('search/', ProductSearchView.as_view(), name='product-search'),
-    path('store/<str:store>/', ProductByStoreView.as_view(), name='product-by-user'),
-    path('product-detail/<int:id>/', ProductDetailView.as_view(), name='product-detail'),
+    path('search/', 
+         ProductSearchView.as_view(), name='product-search'),
+    path('store/<str:store>/', 
+         ProductByStoreView.as_view(), name='product-by-user'),
+    path('product-detail/<int:id>/', 
+         ProductDetailView.as_view(), name='product-detail'),
     path('', include(router.urls)),
 ]

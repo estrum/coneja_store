@@ -5,8 +5,12 @@ from products.models import ProductInventory
 from conf.manejo_imagenes import procesar_imagen
 import cloudinary.uploader
 
-
+#TODO: añadir logs en las orders
 class OrderDetailSerializer(serializers.ModelSerializer):
+    """
+    Despliega la información de los productos comprados
+    Según la orden generada
+    """
 
     class Meta:
         model = OrderDetail
@@ -20,6 +24,11 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
+    """
+    Despliega la oden del cliente con los productos que este
+    compró
+    """
+
     items = OrderDetailSerializer(many=True)
     total_amount = serializers.DecimalField(
         max_digits=10, 
@@ -79,46 +88,41 @@ class OrderSerializer(serializers.ModelSerializer):
         return order
 
 
-class StoreOrderDetailSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OrderDetail
-        fields = [
-            "id",
-            "order",
-            "product_name_snapshot",
-            "product_sku_snapshot",
-            "quantity",
-            "price_per_unit",
-            "subtotal",
-        ]
-        read_only_fields = fields
+class OrderSerializerList(serializers.ModelSerializer):
+    """
+    Despliega la oden del cliente en una lista corta
+    """
 
-
-class StoreOrderSerializer(serializers.ModelSerializer):
-    items = StoreOrderDetailSerializer(many=True)
+    total_amount = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        read_only=True)
     store_name = serializers.CharField(
-        source='store_name.store_name', read_only=True)
+        source='store_name.store_name', 
+        read_only=True)
 
     class Meta:
         model = Order
         fields = [
             "id",
-            "issued_at",
+            "formatted_id",
+            "buyer_email",
+            "buyer_phone",
             "total_amount",
             "payment_status",
             "shipping_status",
-            "shipping_address",
-            "buyer_phone",
-            "buyer_email",
-            "notes",
-            "tracking_number",
             "store_name",
-            "items",
+            "issued_at",
         ]
         read_only_fields = fields
 
 
 class UpdateOrderSerializer(serializers.ModelSerializer):
+    """
+    Permite al dueño de la tienda subir una foto de voucher
+    del envio del producto. cuando el producto esté en manos
+    del cliente se dara como completado
+    """
     # Cambiamos a ImageField para recibir archivos
     shipping_invoice_url = serializers.ImageField(required=True)
     
@@ -153,15 +157,20 @@ class UpdateOrderSerializer(serializers.ModelSerializer):
 
 
 class CancelOrderSerializer(serializers.ModelSerializer):
+    """
+    Permite al dueño de la tienda cancelar el pedido
+    reestableciendo el stock de los articulos y
+    reembolzar el dinero gastado en esa tienda.
+    """
     class Meta:
         model = Order
-        fields = []  # no recibe datos del request
+        fields = []
 
     def update(self, instance, validated_data):
-        if instance.shipping_status == "canceled":
+        if instance.shipping_status != "processing":
             raise serializers.ValidationError(
                 {
-                    "detail": "Order already canceled", 
+                    "detail": "Order cannot be canceled", 
                     "code": "already_canceled"
                 }
             )
@@ -183,12 +192,60 @@ class CancelOrderSerializer(serializers.ModelSerializer):
         return instance
 
 
+class CompleteOrRefoundOrderSerializer(serializers.Serializer):
+    """
+    Permite al administrador cambiar los estados de shipping
+    y payment a completado o reembolsado.
+    option = 1 => marca producto como entregado.
+    option = 2 => marca producto como reembolsado.
+    """
+    option = serializers.IntegerField(write_only=True)
+
+    def validate_option(self, value):
+        if value not in [1, 2]:
+            raise serializers.ValidationError(
+                "Option must be 1 (delivered) or 2 (refounded).")
+        return value
+
+    def update(self, instance, validated_data):
+        option = validated_data["option"]
+
+        print(instance.shipping_status)
+        print(instance.payment_status)
+        # Validación de estados previos
+        if instance.shipping_status == "processing" and \
+            option == 1:
+            instance.shipping_status = "delivered"
+
+        elif instance.payment_status == "failed" and \
+            option == 2:
+            instance.payment_status = "refounded"
+
+        else: 
+            raise serializers.ValidationError(
+                {
+                    "detail": "Order status cannot be changed",
+                    "code": "product already refounded or delivered",
+                }
+            )
+
+        instance.save()
+        return instance
+
+
 class CartItemSerializer(serializers.Serializer):
+    """
+    Maneja los articulos del carro del cliente
+    """
+    
     article = serializers.IntegerField()
     quantity = serializers.IntegerField(min_value=1)
 
 
 class CheckoutSerializer(serializers.Serializer):
+    """
+    Procesa la venta y genera una orden si todo va bien
+    """
     email = serializers.EmailField()
     phone = serializers.CharField()
     address = serializers.CharField()
@@ -234,7 +291,7 @@ class CheckoutSerializer(serializers.Serializer):
                 order = Order.objects.create(
                     store_name=store_user,
                     total_amount=total_amount,
-                    payment_status="pending",
+                    payment_status="paid",
                     shipping_status="pending",
                     shipping_address=validated_data["address"],
                     buyer_phone=validated_data["phone"],

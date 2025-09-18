@@ -37,10 +37,11 @@ class IsOwnerByGUIDOrAdminForUserApp(permissions.BasePermission):
         return is_owner
 
 
-class IsOwnerByGUIDOrAdminForProductsApp(permissions.BasePermission):
+class IsOwnerByGUIDOrAdminForRestApp(permissions.BasePermission):
     """
     Permite acceso si el usuario autenticado es dueño del recurso 
     (por GUID), o si es staff/superuser.
+    se utiliza en cualquier app que no sea usuario
     """
 
     def has_object_permission(self, request, view, obj):
@@ -55,7 +56,7 @@ class IsOwnerByGUIDOrAdminForProductsApp(permissions.BasePermission):
             return True
 
         # 3. Verificar si es dueño del objeto.
-        is_owner = str(user.guid) == str(obj.posted_by.guid)
+        is_owner = str(user.guid) == str(obj.store_name.guid)
 
         # 4. Métodos de solo lectura → permitir si es dueño
         if request.method in permissions.SAFE_METHODS:

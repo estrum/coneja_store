@@ -23,7 +23,7 @@ class SizeAdmin(admin.ModelAdmin):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'name', 'category', 'posted_by', 'price', 'is_active')
+        'id', 'name', 'category', 'store_name', 'price', 'is_active')
     list_filter = ('category', 'is_active', 'tags')
     search_fields = ('name', 'description')
     filter_horizontal = ('tags',)

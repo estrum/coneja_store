@@ -35,7 +35,6 @@ class Size(models.Model):
         return self.size_name
 
 
-#TODO: añadír slug para las busquedas
 class Product(models.Model):
     """
     productos para mostrar en la vitrina de la web u app.
@@ -47,7 +46,7 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
-    posted_by = models.ForeignKey(CustomUser, on_delete=models.PROTECT)
+    store_name = models.ForeignKey(CustomUser, on_delete=models.PROTECT)
     #postgres array for cloudinart
     image_urls = ArrayField(models.URLField(), blank=True, default=list)
     image_public_ids = ArrayField(
