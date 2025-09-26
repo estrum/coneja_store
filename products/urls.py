@@ -25,7 +25,7 @@ urlpatterns = [
          ProductSearchView.as_view(), name='product-search'),
     path('store/<str:store>/', 
          ProductByStoreView.as_view(), name='product-by-user'),
-    path('product-detail/<int:id>/', 
+    path('product-detail/<str:id>/', 
          ProductDetailView.as_view(), name='product-detail'),
     path('', include(router.urls)),
 ]

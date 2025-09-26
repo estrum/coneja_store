@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.db import transaction
 from .models import Product, Category, Tag, Size, ProductInventory
 
-#TODO: añadir logs a los serializer tags y productserializer
+
 class CategorySerializer(serializers.ModelSerializer):
     """crud para categorías"""
     

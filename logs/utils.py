@@ -3,8 +3,8 @@ from .models import Log
 
 def create_log(
         user, action, 
-        message, related_model=None, 
-        ip=None):
+        message, related_model=None,
+        related_id=None):
     """
     CREATE A REGISTER AFTER AN ACTION
     """
@@ -13,5 +13,5 @@ def create_log(
         action=action,
         message=message,
         related_model=related_model,
-        ip_address=ip
+        related_id=related_id,
     )

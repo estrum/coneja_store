@@ -16,7 +16,7 @@ from rest_framework import status, viewsets
 from rest_framework.permissions import (IsAuthenticated,
                                         IsAdminUser)
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.throttling import UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle
 
 from users.serializers import (UserLoginSerializer, 
                                SendOTPSerializer,
@@ -24,6 +24,9 @@ from users.serializers import (UserLoginSerializer,
                                UserUpdateSerializer,
                                ChangePasswordSerializer)
 from users.models import CustomUser
+
+from logs.utils import create_log
+
 from conf.permissions import IsOwnerByGUIDOrAdminForUserApp
 
 
@@ -49,7 +52,7 @@ class PublicReadOnly(viewsets.ModelViewSet):
         return [permission() for permission in self.permission_classes]
 
 
-class LoginThrottle(UserRateThrottle):
+class LoginThrottle(AnonRateThrottle):
     """limita las solicitudes a 20 por hora"""
 
     rate = '20/hour'
@@ -101,7 +104,7 @@ class SendOTPView(APIView):
     endpoint que verifica el codigo de sesión y manda sms
     con codigo para recibir el token 
     """
-    throttle_classes = [UserRateThrottle]
+    throttle_classes = [LoginThrottle]
 
     def post(self, request):
         serializer = SendOTPSerializer(data=request.data)
@@ -155,7 +158,7 @@ class VerificarOTPView(APIView):
     ingresar a su panel de administración
     """
 
-    throttle_classes = [UserRateThrottle]
+    throttle_classes = [LoginThrottle]
 
     def post(self, request):
         guid = request.data.get('guid')
@@ -196,6 +199,14 @@ class VerificarOTPView(APIView):
 
         refresh = RefreshToken.for_user(user)
 
+        #log
+        create_log(
+            user=user,
+            action="LOGIN",
+            message=f"User {user.first_name} logged",
+            related_model="USER",
+        )
+
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
@@ -210,8 +221,10 @@ class UserViewSet(PublicReadOnly):
 
     def list(self, request):
         """GET"""
-
-        users = CustomUser.objects.exclude(is_superuser=True)
+        users = CustomUser.objects.filter(
+            is_superuser=False,
+            is_active=True
+        )
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
@@ -220,10 +233,13 @@ class UserViewSet(PublicReadOnly):
         """GET BY ID"""
 
         try:
-            user = CustomUser.objects.exclude(
-                is_superuser=True).get(pk=pk)
+            id= int(pk)
+            user = CustomUser.objects.filter(
+                is_superuser=False,
+                is_active=True
+            ).get(pk=id)
         
-        except CustomUser.DoesNotExist:
+        except (ValueError, CustomUser.DoesNotExist):
             return Response(
                 {'detail': 'Usuario no encontrado'}, status=404)
         
@@ -236,10 +252,11 @@ class UserViewSet(PublicReadOnly):
         """UPDATE (PATCH)"""
         
         try:
+            id = int(pk)
             user = CustomUser.objects.exclude(
-                is_superuser=True).get(pk=pk)
+                is_superuser=True, is_active=False).get(pk=id)
         
-        except CustomUser.DoesNotExist:
+        except (ValueError, CustomUser.DoesNotExist):
             return Response({'detail': 'CustomUser no encontrado'}, 
                             status=404)
         
@@ -248,8 +265,17 @@ class UserViewSet(PublicReadOnly):
                                           data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+
+            #log
+            create_log(
+                user=user,
+                action="UPDATE",
+                message=f"User {user.first_name} updated!",
+                related_model="USER",
+            )
+
             return Response({'detail': 'CustomUser actualizado'})
-        
+
         return Response(serializer.errors, status=400)
 
     
@@ -258,10 +284,11 @@ class UserViewSet(PublicReadOnly):
         """UPDATE PASSWORD (PATCH)"""
 
         try:
+            id = int(pk)
             user = CustomUser.objects.exclude(
-                is_superuser=True).get(pk=pk)
+                is_superuser=True, is_active=False).get(pk=id)
         
-        except CustomUser.DoesNotExist:
+        except (ValueError, CustomUser.DoesNotExist):
             return Response(
                 {'detail': 'CustomUser no encontrado'}, status=404)
 
@@ -271,21 +298,41 @@ class UserViewSet(PublicReadOnly):
             user.set_password(
                 serializer.validated_data['new_password'])
             user.save()
+
+            #log
+            create_log(
+                user=user,
+                action="UPDATE",
+                message=f"User {user.first_name}'s password changed!",
+                related_model="USER",
+            )
+
             return Response({'detail': 'Contraseña actualizada'})
+        
         return Response(serializer.errors, status=400)
 
     
     def destroy(self, request, pk=None):
         """DELETE BY ID"""
+
         try:
-            user = CustomUser.objects.exclude(
-                is_superuser=True).get(pk=pk)
-        except CustomUser.DoesNotExist:
-            return Response(
-                {'detail': 'CustomUser no encontrado'}, status=404)
+            id = int(pk)
+            user = CustomUser.objects.exclude(is_superuser=True).get(pk=id)
+        except (ValueError, CustomUser.DoesNotExist):
+            return Response({'detail': 'CustomUser no encontrado'}, status=404)
         
         self.check_object_permissions(request, user)
-        user.delete()
+        user.is_active = False
+        user.save()
+
+        #log
+        create_log(
+            user=user,
+            action="DELETE",
+            message=f"User {user.first_name} deleted",
+            related_model="USER",
+        )
+
         return Response(
             {'detail': 'CustomUser eliminado'}, status=204)
 
@@ -303,10 +350,6 @@ class ChangePasswordView(APIView):
             return Response(
                 {'detail': 'CustomUser no encontrado'}, status=404)
 
-        # Aquí, en lugar de duplicar la lógica de is_admin y is_self,
-        # dejamos que el permiso IsOwnerByGUIDOrAdminForUserApp haga 
-        # su trabajo. check_object_permissions lanzará una excepción 
-        # si el permiso falla (403 Forbidden).
         self.check_object_permissions(request, user_to_edit)
 
         serializer = ChangePasswordSerializer(data=request.data)

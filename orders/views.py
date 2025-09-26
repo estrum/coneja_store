@@ -1,7 +1,13 @@
+from conf.permissions import IsOwnerByGUIDOrAdminForRestApp
+
 from .models import Order
+
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAdminUser
+from rest_framework.throttling import AnonRateThrottle
+
 from django.shortcuts import get_object_or_404
 
 from .serializers import (
@@ -12,11 +18,23 @@ from .serializers import (
     OrderSerializerList,
     CompleteOrRefoundOrderSerializer
 )
-#from conf.permissions import IsOwnerOrStaff
+
+
+class OrderThrottle(AnonRateThrottle):
+    """limita las solicitudes a 20 por hora"""
+
+    rate = '100/hour'
 
 
 # 1. Get All Orders ny store_name__slug
 class StoreOrdersListView(generics.ListAPIView):
+    """
+    permite al dueño de la tienda ver todas sus ordenes.
+    El puede filtrar para ver cuales están listas y cuales
+    faltan por actualizar.
+    """
+
+    permission_classes = [IsOwnerByGUIDOrAdminForRestApp]
     serializer_class = OrderSerializerList
 
     def get_queryset(self):
@@ -41,6 +59,12 @@ class StoreOrdersListView(generics.ListAPIView):
 
 # 2. Get Order by Formatted id
 class OrderDetailView(generics.RetrieveAPIView):
+    """
+    permite revisar los detalles de la compra con
+    el id
+    """
+
+    throttle_classes = [OrderThrottle]
     serializer_class = OrderSerializer
     queryset = Order.objects.all()
 
@@ -73,6 +97,13 @@ class OrderDetailView(generics.RetrieveAPIView):
 
 #3. update order
 class UpdateOrderView(generics.UpdateAPIView):
+    """
+    permite al dueño de la tienda subir la factura del envío
+    y cambiar el estado a processing.
+    al hacer esto el dueño de la tienda no puede cancelar el pedido
+    """
+
+    permission_classes = [IsOwnerByGUIDOrAdminForRestApp]
     queryset = Order.objects.all()
     serializer_class = UpdateOrderSerializer
     lookup_field = "id"
@@ -91,6 +122,14 @@ class UpdateOrderView(generics.UpdateAPIView):
 
 #4 delete order
 class CancelOrderView(generics.UpdateAPIView):
+    """
+    permite al dueño de la tienda cancelar el pedido
+    mientras no se haya actualizado el estado del envío
+    de processing.
+    reestablece el stock que el cliente compró
+    """
+
+    permission_classes = [IsOwnerByGUIDOrAdminForRestApp]
     queryset = Order.objects.all()
     serializer_class = CancelOrderSerializer
     lookup_field = "id"
@@ -109,6 +148,14 @@ class CancelOrderView(generics.UpdateAPIView):
 
 #5 complete or refound order
 class CompleteOrRefoundOrderView(generics.UpdateAPIView):
+    """
+    cambia estado de pedido a delivered si el pedido se completa
+    o el pago a refounded si ocurre algo durante el traslado del pedido.
+    Si se completa el delivery y el estado cambia a delivered,
+    se crea una boleta para pagarle a la tienda que hizo las ventas
+    """
+
+    permission_classes = [IsAdminUser]
     serializer_class = CompleteOrRefoundOrderSerializer
     queryset = Order.objects.all()
     lookup_field = "id"
@@ -129,6 +176,12 @@ class CompleteOrRefoundOrderView(generics.UpdateAPIView):
 
 #6 generate payment
 class CheckoutView(APIView):
+    """
+    genera el pago con la pasarela de pagos
+    """
+
+    throttle_classes = [OrderThrottle]
+
     def post(self, request, *args, **kwargs):
         serializer = CheckoutSerializer(data=request.data)
         if serializer.is_valid():

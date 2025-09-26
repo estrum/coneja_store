@@ -11,7 +11,6 @@ class Category(models.Model):
         return self.name
 
 
-#TODO: permitir que el usuario se cree un tag si no existe
 class Tag(models.Model):
     """Tags para la clasificación y filtrado de productos"""
     name = models.CharField(max_length=50, unique=True)

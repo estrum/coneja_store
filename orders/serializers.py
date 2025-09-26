@@ -6,6 +6,10 @@ from conf.manejo_imagenes import procesar_imagen
 import cloudinary.uploader
 
 #TODO: añadir logs en las orders
+#TODO: añadir logica para enviar emails al realizar pagos 
+# y actualizaciones
+#TODO: crear un payment en el checkout cuando se valida
+#la venta
 class OrderDetailSerializer(serializers.ModelSerializer):
     """
     Despliega la información de los productos comprados
@@ -171,7 +175,7 @@ class CancelOrderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {
                     "detail": "Order cannot be canceled", 
-                    "code": "already_canceled"
+                    "code": "already_canceled_or_shipping"
                 }
             )
 
@@ -262,7 +266,7 @@ class CheckoutSerializer(serializers.Serializer):
             for item in cart_items:
                 article = ProductInventory.objects.select_related(
                     "product").get(id=item["article"])
-                store_user = article.product.posted_by
+                store_user = article.product.store_name
 
                 # Validamos stock
                 if article.stock < item["quantity"]:

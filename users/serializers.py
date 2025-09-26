@@ -83,13 +83,12 @@ class UserSerializer(serializers.ModelSerializer):
 
         #log
         create_log(
-            user=None,
+            user=user,
             action="CREATE",
-            message=f"User created",
+            message=f"User {user.first_name} created",
             related_model="USER",
-            related_id=str(user.id)
         )
-
+        
         return user
 
 
@@ -127,15 +126,6 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         instance.phone_number = validated_data.get("phone_number")
         instance.email = validated_data.get("email")
         instance.save()
-
-        #log
-        create_log(
-            user=instance.guid,
-            action="UPDATE",
-            message=f"User updated",
-            related_model="USER",
-            related_id=str(instance.id)
-        )
 
         return instance
 
